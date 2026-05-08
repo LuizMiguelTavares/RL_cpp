@@ -44,6 +44,9 @@ struct TrainingConfigFile {
     int max_steps{200};
     int print_every{4500};
     int flush_every{1000};
+
+    // 0 disables periodic checkpoints.
+    int checkpoint_every{0};
 };
 
 struct RunConfig {

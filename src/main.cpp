@@ -12,6 +12,7 @@
 #include "mc_agent.hpp"
 #include "training.hpp"
 #include "types.hpp"
+#include <csignal>
 
 namespace {
 
@@ -33,11 +34,38 @@ bool checkpoint_exists(const std::filesystem::path& checkpoint_dir) {
            std::filesystem::exists(checkpoint_dir / "tie_noise.bin");
 }
 
+volatile std::sig_atomic_t g_stop_requested = 0;
+
+void handle_sigint(int) {
+    g_stop_requested = 1;
+}
+
+bool stop_requested() {
+    return g_stop_requested != 0;
+}
+
+void save_latest_and_numbered_checkpoint(
+    const std::filesystem::path& checkpoints_dir,
+    const std::filesystem::path& latest_ckpt_dir,
+    const rl::GridWorld& env,
+    const rl::MonteCarloOffPolicyAgent& agent,
+    int last_completed_episode
+) {
+    rl::save_checkpoint(latest_ckpt_dir, env, agent, last_completed_episode);
+
+    const std::filesystem::path numbered_ckpt =
+        checkpoints_dir / ("ep_" + std::to_string(last_completed_episode));
+
+    rl::save_checkpoint(numbered_ckpt, env, agent, last_completed_episode);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     try {
         using namespace rl;
+
+        std::signal(SIGINT, handle_sigint);
 
         std::filesystem::path config_path = "config.json";
         bool force_resume = false;
@@ -179,18 +207,54 @@ int main(int argc, char** argv) {
 
             std::cout << "Training started...\n\n";
 
+            const int starting_completed_episode = last_completed_episode;
+
+            train_cfg.checkpoint_every = cfg.training.checkpoint_every;
+
+            train_cfg.checkpoint_callback =
+                [&](int completed_this_run) {
+                    const int completed_overall =
+                        starting_completed_episode + completed_this_run;
+
+                    save_latest_and_numbered_checkpoint(
+                        checkpoints_dir,
+                        latest_ckpt_dir,
+                        env,
+                        agent,
+                        completed_overall
+                    );
+                };
+
+            train_cfg.should_stop = []() {
+                return stop_requested();
+            };
+
             history = train_mc_offpolicy(env, agent, train_cfg, &logger);
 
-            last_completed_episode += episodes_this_run;
+            last_completed_episode += history.completed_episodes;
 
-            save_checkpoint(latest_ckpt_dir, env, agent, last_completed_episode);
+            if (history.completed_episodes > 0) {
+                save_latest_and_numbered_checkpoint(
+                    checkpoints_dir,
+                    latest_ckpt_dir,
+                    env,
+                    agent,
+                    last_completed_episode
+                );
 
-            const std::filesystem::path numbered_ckpt =
-                checkpoints_dir / ("ep_" + std::to_string(last_completed_episode));
-            save_checkpoint(numbered_ckpt, env, agent, last_completed_episode);
+                const std::filesystem::path numbered_ckpt =
+                    checkpoints_dir / ("ep_" + std::to_string(last_completed_episode));
 
-            std::cout << "\nCheckpoint saved to: " << latest_ckpt_dir << '\n';
-            std::cout << "Snapshot checkpoint saved to: " << numbered_ckpt << '\n';
+                std::cout << "\nCheckpoint saved to: " << latest_ckpt_dir << '\n';
+                std::cout << "Snapshot checkpoint saved to: " << numbered_ckpt << '\n';
+            }
+
+            if (history.interrupted) {
+                std::cout
+                    << "Graceful stop completed after episode "
+                    << last_completed_episode << ".\n";
+            }
+
             std::cout << "Training CSV saved to: " << log_path << '\n';
         } else {
             std::cout << "No episodes requested for this run.\n";

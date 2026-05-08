@@ -78,6 +78,9 @@ TrainingHistory train_mc_offpolicy(
     if (config.flush_every <= 0) {
         throw std::runtime_error("train_mc_offpolicy: flush_every must be positive");
     }
+    if (config.checkpoint_every < 0) {
+        throw std::runtime_error("train_mc_offpolicy: checkpoint_every must be >= 0");
+    }
 
     TrainingHistory history;
     history.episode_return.reserve(static_cast<std::size_t>(config.episodes));
@@ -168,6 +171,26 @@ TrainingHistory train_mc_offpolicy(
                 << " | GenTime=" << avg_gen_time << "s"
                 << " | UpdTime=" << avg_upd_time << "s"
                 << '\n';
+        }
+
+        history.completed_episodes = ep;
+
+        if (
+            config.checkpoint_every > 0 &&
+            config.checkpoint_callback &&
+            ep % config.checkpoint_every == 0
+        ) {
+            config.checkpoint_callback(ep);
+        }
+
+        if (config.should_stop && config.should_stop()) {
+            history.interrupted = true;
+
+            std::cout
+                << "\nStop requested. Training will exit after completed episode "
+                << ep << ".\n";
+
+            break;
         }
     }
 

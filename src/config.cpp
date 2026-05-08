@@ -67,6 +67,7 @@ RunConfig load_config(const std::filesystem::path& config_path) {
         cfg.training.max_steps = t.value("max_steps", cfg.training.max_steps);
         cfg.training.print_every = t.value("print_every", cfg.training.print_every);
         cfg.training.flush_every = t.value("flush_every", cfg.training.flush_every);
+        cfg.training.checkpoint_every = t.value("checkpoint_every", cfg.training.checkpoint_every);
     }
 
     return cfg;
