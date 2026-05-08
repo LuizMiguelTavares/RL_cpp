@@ -1,0 +1,9 @@
+build/
+runs/
+.vscode/
+*.o
+*.obj
+*.so
+*.a
+*.out
+*.log

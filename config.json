@@ -1,0 +1,39 @@
+{
+  "run_name": "run_001",
+  "resume": true,
+
+  "environment": {
+    "width": 50,
+    "height": 50,
+    "obstacle_density": 0.22,
+    "obstacle_mode": "cluster",
+    "seed": 30,
+    "cluster_size": 5,
+    "start_row": 0,
+    "start_col": 0,
+    "goal_row": -1,
+    "goal_col": -1,
+    "allow_diagonal": false,
+    "diagonal_cost": -1.0,
+    "reward_goal": 100.0,
+    "reward_obstacle": -10.0,
+    "reward_step": -0.0001,
+    "shaping": "euclidean",
+    "ensure_solvable": true,
+    "obstacle_generation_tries": 100
+  },
+
+  "agent": {
+    "gamma": 0.99,
+    "epsilon_behavior": 0.20,
+    "visit_mode": "first_visit",
+    "seed": 42
+  },
+
+  "training": {
+    "episodes_this_run": 10000000,
+    "max_steps": 200,
+    "print_every": 45000,
+    "flush_every": 1000
+  }
+}
