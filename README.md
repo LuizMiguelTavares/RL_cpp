@@ -30,7 +30,7 @@ From the project root:
 mkdir -p build
 cd build
 cmake ..
-cmake --build .. -j$(nproc)
+cmake --build . -j$(nproc)
 ```
 
 ### 3. Run
