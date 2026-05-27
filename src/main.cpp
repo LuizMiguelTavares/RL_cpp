@@ -12,6 +12,7 @@
 #include "mc_agent.hpp"
 #include "training.hpp"
 #include "types.hpp"
+#include "plot_export.hpp"
 #include <csignal>
 
 namespace {
@@ -44,19 +45,54 @@ bool stop_requested() {
     return g_stop_requested != 0;
 }
 
-void save_latest_and_numbered_checkpoint(
-    const std::filesystem::path& checkpoints_dir,
+void save_latest_checkpoint(
     const std::filesystem::path& latest_ckpt_dir,
     const rl::GridWorld& env,
     const rl::MonteCarloOffPolicyAgent& agent,
     int last_completed_episode
 ) {
     rl::save_checkpoint(latest_ckpt_dir, env, agent, last_completed_episode);
+}
 
+void save_numbered_checkpoint(
+    const std::filesystem::path& checkpoints_dir,
+    const rl::GridWorld& env,
+    const rl::MonteCarloOffPolicyAgent& agent,
+    int last_completed_episode
+) {
     const std::filesystem::path numbered_ckpt =
         checkpoints_dir / ("ep_" + std::to_string(last_completed_episode));
 
     rl::save_checkpoint(numbered_ckpt, env, agent, last_completed_episode);
+}
+
+bool is_due_every(int completed_this_run, int every) {
+    return every > 0 && completed_this_run % every == 0;
+}
+
+bool is_due_snapshot_schedule(
+    int completed_this_run,
+    const std::vector<rl::SnapshotScheduleEntry>& schedule
+) {
+    for (const auto& entry : schedule) {
+        if (completed_this_run <= entry.until) {
+            return is_due_every(completed_this_run, entry.every);
+        }
+    }
+
+    return false;
+}
+
+bool should_save_snapshot(
+    int completed_this_run,
+    int snapshot_every,
+    const std::vector<rl::SnapshotScheduleEntry>& schedule
+) {
+    if (!schedule.empty()) {
+        return is_due_snapshot_schedule(completed_this_run, schedule);
+    }
+
+    return is_due_every(completed_this_run, snapshot_every);
 }
 
 }  // namespace
@@ -111,14 +147,7 @@ int main(int argc, char** argv) {
         std::unique_ptr<MonteCarloOffPolicyAgent> agent_ptr;
         int last_completed_episode = 0;
 
-        if (cfg.resume) {
-            if (!checkpoint_exists(latest_ckpt_dir)) {
-                throw std::runtime_error(
-                    "Resume requested, but latest checkpoint was not found at: " +
-                    latest_ckpt_dir.string()
-                );
-            }
-
+        if (cfg.resume && checkpoint_exists(latest_ckpt_dir)) {
             LoadedCheckpoint ckpt = load_checkpoint(latest_ckpt_dir);
 
             env_ptr = std::make_unique<GridWorld>(std::move(ckpt.env));
@@ -128,6 +157,16 @@ int main(int argc, char** argv) {
             std::cout << "Loaded checkpoint from: " << latest_ckpt_dir << '\n';
             std::cout << "Last completed episode: " << last_completed_episode << "\n\n";
         } else {
+            if (cfg.resume) {
+                std::cout
+                    << "Resume requested, but no valid latest checkpoint was found at: "
+                    << latest_ckpt_dir << '\n'
+                    << "Starting a new run instead.\n\n";
+
+                // From this point on, this execution behaves as a fresh run.
+                cfg.resume = false;
+            }
+
             env_ptr = std::make_unique<GridWorld>(
                 cfg.environment.width,
                 cfg.environment.height,
@@ -163,14 +202,14 @@ int main(int argc, char** argv) {
             std::cout << "Goal: " << env_ptr->goal() << "\n\n";
 
             std::cout << "Initial greedy action at start: "
-                      << agent_ptr->greedy_action(env_ptr->start()) << '\n';
+                    << agent_ptr->greedy_action(env_ptr->start()) << '\n';
 
             for (Action a = 0; a < env_ptr->num_actions(); ++a) {
                 std::cout << "Q(start," << a << ") = "
-                          << agent_ptr->q_value(env_ptr->start(), a)
-                          << " | tie_noise = "
-                          << agent_ptr->tie_noise_value(env_ptr->start(), a)
-                          << '\n';
+                        << agent_ptr->q_value(env_ptr->start(), a)
+                        << " | tie_noise = "
+                        << agent_ptr->tie_noise_value(env_ptr->start(), a)
+                        << '\n';
             }
             std::cout << '\n';
         }
@@ -209,20 +248,38 @@ int main(int argc, char** argv) {
 
             const int starting_completed_episode = last_completed_episode;
 
-            train_cfg.checkpoint_every = cfg.training.checkpoint_every;
-
-            train_cfg.checkpoint_callback =
+            train_cfg.after_episode_callback =
                 [&](int completed_this_run) {
                     const int completed_overall =
                         starting_completed_episode + completed_this_run;
 
-                    save_latest_and_numbered_checkpoint(
-                        checkpoints_dir,
-                        latest_ckpt_dir,
-                        env,
-                        agent,
-                        completed_overall
-                    );
+                    // Safety checkpoint for resume.
+                    // This updates only checkpoints/latest.
+                    if (is_due_every(completed_this_run, cfg.training.checkpoint_every)) {
+                        save_latest_checkpoint(
+                            latest_ckpt_dir,
+                            env,
+                            agent,
+                            completed_overall
+                        );
+                    }
+
+                    // Numbered snapshots for plotting/animation.
+                    // These create checkpoints/ep_N.
+                    if (
+                        should_save_snapshot(
+                            completed_this_run,
+                            cfg.training.snapshot_every,
+                            cfg.training.snapshot_schedule
+                        )
+                    ) {
+                        save_numbered_checkpoint(
+                            checkpoints_dir,
+                            env,
+                            agent,
+                            completed_overall
+                        );
+                    }
                 };
 
             train_cfg.should_stop = []() {
@@ -234,9 +291,15 @@ int main(int argc, char** argv) {
             last_completed_episode += history.completed_episodes;
 
             if (history.completed_episodes > 0) {
-                save_latest_and_numbered_checkpoint(
-                    checkpoints_dir,
+                save_latest_checkpoint(
                     latest_ckpt_dir,
+                    env,
+                    agent,
+                    last_completed_episode
+                );
+
+                save_numbered_checkpoint(
+                    checkpoints_dir,
                     env,
                     agent,
                     last_completed_episode
@@ -259,6 +322,17 @@ int main(int argc, char** argv) {
         } else {
             std::cout << "No episodes requested for this run.\n";
         }
+
+        const std::filesystem::path export_dir = run_dir / "export";
+
+        export_gridworld_plot_data(
+            export_dir,
+            env,
+            agent,
+            last_completed_episode
+        );
+
+        std::cout << "Plot data exported to: " << export_dir << '\n';
 
         std::vector<State> path = agent.greedy_path(env, cfg.training.max_steps);
 

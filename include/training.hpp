@@ -16,12 +16,9 @@ struct TrainingConfig {
     int print_every{100};
     int flush_every{100};
 
-    // 0 disables periodic checkpoints.
-    int checkpoint_every{0};
-
-    // Called after a completed episode when a periodic checkpoint is due.
+    // Called after each completed episode.
     // Argument: number of episodes completed in the current execution.
-    std::function<void(int)> checkpoint_callback{};
+    std::function<void(int)> after_episode_callback{};
 
     // Should return true when training should stop after the current episode.
     std::function<bool()> should_stop{};

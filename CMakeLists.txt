@@ -17,6 +17,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # --------------------------------------------------
+# Dependencies
+# --------------------------------------------------
+find_package(nlohmann_json REQUIRED)
+
+# --------------------------------------------------
 # Compiler warnings
 # --------------------------------------------------
 add_compile_options(
@@ -25,25 +30,10 @@ add_compile_options(
     -Wpedantic
 )
 
-# Optional stronger warnings:
-# add_compile_options(
-#     -Wall
-#     -Wextra
-#     -Wpedantic
-#     -Wconversion
-#     -Wshadow
-# )
-
 # --------------------------------------------------
-# Includes
+# Core source files
 # --------------------------------------------------
-include_directories(include)
-
-# --------------------------------------------------
-# Source files
-# --------------------------------------------------
-set(SOURCES
-    src/main.cpp
+set(RL_CORE_SOURCES
     src/types.cpp
     src/gridworld.cpp
     src/mc_agent.cpp
@@ -51,33 +41,72 @@ set(SOURCES
     src/logging.cpp
     src/checkpointing.cpp
     src/config.cpp
+    src/plot_export.cpp
 )
 
 # --------------------------------------------------
-# Executable
+# Core library
 # --------------------------------------------------
-add_executable(rl_main ${SOURCES})
+add_library(rl_core STATIC ${RL_CORE_SOURCES})
 
-find_package(nlohmann_json REQUIRED)
-target_link_libraries(rl_main PRIVATE nlohmann_json::nlohmann_json)
-
-target_include_directories(rl_main
-    PRIVATE
+target_include_directories(rl_core
+    PUBLIC
         ${CMAKE_SOURCE_DIR}/include
 )
 
+target_link_libraries(rl_core
+    PUBLIC
+        nlohmann_json::nlohmann_json
+)
+
+target_compile_options(rl_core
+    PRIVATE
+        $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:Debug>:-O0 -g>
+)
+
 # --------------------------------------------------
-# Optimization / debug flags
+# Main executable
 # --------------------------------------------------
-target_compile_options(rl_main PRIVATE
-    $<$<CONFIG:Release>:-O3>
-    $<$<CONFIG:Debug>:-O0 -g>
+add_executable(rl_main
+    src/main.cpp
+)
+
+target_link_libraries(rl_main
+    PRIVATE
+        rl_core
+)
+
+target_compile_options(rl_main
+    PRIVATE
+        $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:Debug>:-O0 -g>
+)
+
+# --------------------------------------------------
+# Offline snapshot exporter
+# --------------------------------------------------
+add_executable(rl_export_snapshots
+    tools/export_snapshots.cpp
+)
+
+target_link_libraries(rl_export_snapshots
+    PRIVATE
+        rl_core
+)
+
+target_compile_options(rl_export_snapshots
+    PRIVATE
+        $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:Debug>:-O0 -g>
 )
 
 # --------------------------------------------------
 # Output directory
 # --------------------------------------------------
-set_target_properties(rl_main PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+set_target_properties(
+    rl_main
+    rl_export_snapshots
+    PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
-

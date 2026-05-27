@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace rl {
 
@@ -39,14 +40,28 @@ struct AgentConfig {
     unsigned int seed{42};
 };
 
+struct SnapshotScheduleEntry {
+    int until{0};
+    int every{0};
+};
+
 struct TrainingConfigFile {
     int episodes_this_run{27000};
     int max_steps{200};
     int print_every{4500};
     int flush_every{1000};
 
-    // 0 disables periodic checkpoints.
+    // Periodic safety checkpoint.
+    // Saves the latest checkpoint for resume.
     int checkpoint_every{0};
+
+    // Periodic numbered snapshot for plotting/animation.
+    // Ignored when snapshot_schedule is non-empty.
+    int snapshot_every{0};
+
+    // Variable-resolution numbered snapshots for plotting/animation.
+    // Episodes are relative to the current execution.
+    std::vector<SnapshotScheduleEntry> snapshot_schedule{};
 };
 
 struct RunConfig {

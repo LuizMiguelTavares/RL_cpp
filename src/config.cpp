@@ -68,6 +68,28 @@ RunConfig load_config(const std::filesystem::path& config_path) {
         cfg.training.print_every = t.value("print_every", cfg.training.print_every);
         cfg.training.flush_every = t.value("flush_every", cfg.training.flush_every);
         cfg.training.checkpoint_every = t.value("checkpoint_every", cfg.training.checkpoint_every);
+        cfg.training.checkpoint_every = t.value("checkpoint_every", cfg.training.checkpoint_every);
+        cfg.training.snapshot_every = t.value("snapshot_every", cfg.training.snapshot_every);
+        cfg.training.snapshot_schedule.clear();
+
+        if (t.contains("snapshot_schedule")) {
+            for (const auto& item : t.at("snapshot_schedule")) {
+                SnapshotScheduleEntry entry;
+
+                entry.until = item.value("until", 0);
+                entry.every = item.value("every", 0);
+
+                if (entry.until <= 0) {
+                    throw std::runtime_error("snapshot_schedule entry must have until > 0");
+                }
+
+                if (entry.every <= 0) {
+                    throw std::runtime_error("snapshot_schedule entry must have every > 0");
+                }
+
+                cfg.training.snapshot_schedule.push_back(entry);
+            }
+        }
     }
 
     return cfg;
