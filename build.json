@@ -1,0 +1,7 @@
+{
+  "clean": true,
+  "build_dir": "build",
+  "generator": "Ninja",
+  "build_type": "Release",
+  "jobs": 0
+}

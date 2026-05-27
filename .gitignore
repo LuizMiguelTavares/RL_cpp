@@ -2,6 +2,7 @@ build/
 runs/
 bin/
 .vscode/
+.venv/
 *.o
 *.obj
 *.so

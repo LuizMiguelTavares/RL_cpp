@@ -3,8 +3,8 @@
   "resume": true,
 
   "environment": {
-    "width": 50,
-    "height": 50,
+    "width": 25,
+    "height": 25,
     "obstacle_density": 0.22,
     "obstacle_mode": "cluster",
     "seed": 30,
@@ -35,6 +35,15 @@
     "max_steps": 200,
     "print_every": 45000,
     "flush_every": 1000,
-    "checkpoint_every": 100000
+
+    "checkpoint_every": 100000,
+
+    "snapshot_every": 0,
+    "snapshot_schedule": [
+      { "until": 10000, "every": 50 },
+      { "until": 100000, "every": 5000 },
+      { "until": 1000000, "every": 50000 },
+      { "until": 10000000, "every": 100000 }
+    ]
   }
 }

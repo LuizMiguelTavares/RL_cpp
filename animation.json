@@ -1,0 +1,9 @@
+{
+  "config_path": "config.json",
+  "run_dir": "",
+  "output": "",
+  "fps": 10,
+  "dpi": 160,
+  "max_frames": 0,
+  "export_snapshots": true
+}
