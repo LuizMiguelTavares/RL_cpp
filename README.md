@@ -233,9 +233,7 @@ For more details, see:
 
 ### Example animation
 
-```md
 ![GridWorld training animation](docs/assets/example_animation.gif)
-```
 
 ---
 
