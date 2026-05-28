@@ -33,51 +33,33 @@ else:
 PY
 }
 
-get_run_dir_from_config() {
-    local config_path="$1"
-
-    python3 - "$config_path" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-config_path = Path(sys.argv[1])
-
-with open(config_path, "r") as f:
-    cfg = json.load(f)
-
-run_name = (
-    cfg.get("run_name")
-    or cfg.get("run", {}).get("name")
-    or "run_001"
-)
-
-print(Path("runs") / run_name)
-PY
-}
-
-CONFIG_PATH="$(read_anim_json config_path config.json)"
-RUN_DIR="$(read_anim_json run_dir "")"
-OUTPUT="$(read_anim_json output "")"
+RUN_NAME="$(read_anim_json run_name run_001)"
+OUTPUT_NAME="$(read_anim_json output_name value_policy_animation)"
+FORMAT="$(read_anim_json format mp4)"
 FPS="$(read_anim_json fps 10)"
 DPI="$(read_anim_json dpi 160)"
 MAX_FRAMES="$(read_anim_json max_frames 0)"
 EXPORT_SNAPSHOTS="$(read_anim_json export_snapshots true)"
 
-if [[ -z "$RUN_DIR" ]]; then
-    RUN_DIR="$(get_run_dir_from_config "$CONFIG_PATH")"
+if [[ "$FORMAT" != "mp4" && "$FORMAT" != "gif" ]]; then
+    echo "Invalid animation format: $FORMAT"
+    echo "Allowed formats: mp4, gif"
+    exit 1
 fi
 
-if [[ -z "$OUTPUT" ]]; then
-    OUTPUT="$RUN_DIR/figures/value_policy_animation.mp4"
-fi
+RUN_DIR="runs/$RUN_NAME"
+DATA_DIR="$RUN_DIR/animation_data"
+OUTPUT_DIR="$RUN_DIR/figures"
+OUTPUT="$OUTPUT_DIR/$OUTPUT_NAME.$FORMAT"
 
 EXPORTER="./build/bin/rl_export_snapshots"
 
 echo "Animation config: $ANIMATION_CONFIG"
-echo "Training config:  $CONFIG_PATH"
+echo "Run name:         $RUN_NAME"
 echo "Run dir:          $RUN_DIR"
+echo "Data dir:         $DATA_DIR"
 echo "Output:           $OUTPUT"
+echo "Format:           $FORMAT"
 echo "FPS:              $FPS"
 echo "DPI:              $DPI"
 echo "Max frames:       $MAX_FRAMES"
@@ -100,7 +82,7 @@ echo "Generating animation..."
 
 CMD=(
     python3 scripts/animate_gridworld.py
-    --data "$RUN_DIR/animation_data"
+    --data "$DATA_DIR"
     --output "$OUTPUT"
     --fps "$FPS"
     --dpi "$DPI"

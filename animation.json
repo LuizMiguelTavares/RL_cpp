@@ -1,7 +1,7 @@
 {
-  "config_path": "config.json",
-  "run_dir": "",
-  "output": "",
+  "run_name": "run_001",
+  "output_name": "value_policy_animation",
+  "format": "mp4",
   "fps": 10,
   "dpi": 160,
   "max_frames": 0,
