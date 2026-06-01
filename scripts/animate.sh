@@ -33,13 +33,51 @@ else:
 PY
 }
 
+list_enabled_animations() {
+    python3 - "$ANIMATION_CONFIG" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+
+if not path.exists():
+    raise SystemExit(f"Animation config not found: {path}")
+
+with open(path, "r") as f:
+    cfg = json.load(f)
+
+animations = cfg.get("animations", [])
+
+if not animations:
+    raise SystemExit("No animations configured in animation.json")
+
+for item in animations:
+    enabled = item.get("enabled", True)
+
+    if not enabled:
+        continue
+
+    plot_type = item.get("type", "")
+    output_name = item.get("output_name", "")
+
+    if not plot_type:
+        raise SystemExit("Animation entry missing required field: type")
+
+    if not output_name:
+        output_name = f"{plot_type}_animation"
+
+    print(f"{plot_type}|{output_name}")
+PY
+}
+
 RUN_NAME="$(read_anim_json run_name run_001)"
-OUTPUT_NAME="$(read_anim_json output_name value_policy_animation)"
 FORMAT="$(read_anim_json format mp4)"
 FPS="$(read_anim_json fps 10)"
-DPI="$(read_anim_json dpi 160)"
+DPI="$(read_anim_json dpi 140)"
 MAX_FRAMES="$(read_anim_json max_frames 0)"
 EXPORT_SNAPSHOTS="$(read_anim_json export_snapshots true)"
+ENCODER="$(read_anim_json encoder cpu)"
 
 if [[ "$FORMAT" != "mp4" && "$FORMAT" != "gif" ]]; then
     echo "Invalid animation format: $FORMAT"
@@ -47,22 +85,27 @@ if [[ "$FORMAT" != "mp4" && "$FORMAT" != "gif" ]]; then
     exit 1
 fi
 
+if [[ "$ENCODER" != "cpu" && "$ENCODER" != "nvenc" ]]; then
+    echo "Invalid encoder: $ENCODER"
+    echo "Allowed encoders: cpu, nvenc"
+    exit 1
+fi
+
 RUN_DIR="runs/$RUN_NAME"
 DATA_DIR="$RUN_DIR/animation_data"
 OUTPUT_DIR="$RUN_DIR/figures"
-OUTPUT="$OUTPUT_DIR/$OUTPUT_NAME.$FORMAT"
-
 EXPORTER="./build/bin/rl_export_snapshots"
 
 echo "Animation config: $ANIMATION_CONFIG"
 echo "Run name:         $RUN_NAME"
 echo "Run dir:          $RUN_DIR"
 echo "Data dir:         $DATA_DIR"
-echo "Output:           $OUTPUT"
+echo "Output dir:       $OUTPUT_DIR"
 echo "Format:           $FORMAT"
 echo "FPS:              $FPS"
 echo "DPI:              $DPI"
 echo "Max frames:       $MAX_FRAMES"
+echo "Encoder:          $ENCODER"
 echo "Export snapshots: $EXPORT_SNAPSHOTS"
 echo
 
@@ -78,22 +121,33 @@ if [[ "$EXPORT_SNAPSHOTS" == "true" ]]; then
 fi
 
 echo
-echo "Generating animation..."
+echo "Generating enabled animations..."
 
-CMD=(
-    python3 scripts/animate_gridworld.py
-    --data "$DATA_DIR"
-    --output "$OUTPUT"
-    --fps "$FPS"
-    --dpi "$DPI"
-)
+while IFS="|" read -r PLOT_TYPE OUTPUT_NAME; do
+    OUTPUT="$OUTPUT_DIR/$OUTPUT_NAME.$FORMAT"
 
-if [[ "$MAX_FRAMES" != "0" ]]; then
-    CMD+=(--max-frames "$MAX_FRAMES")
-fi
+    echo
+    echo "----------------------------------------"
+    echo "Plot type: $PLOT_TYPE"
+    echo "Output:    $OUTPUT"
+    echo "----------------------------------------"
 
-"${CMD[@]}"
+    CMD=(
+        python3 scripts/animate_gridworld.py
+        --data "$DATA_DIR"
+        --output "$OUTPUT"
+        --fps "$FPS"
+        --dpi "$DPI"
+        --plot-type "$PLOT_TYPE"
+        --encoder "$ENCODER"
+    )
+
+    if [[ "$MAX_FRAMES" != "0" ]]; then
+        CMD+=(--max-frames "$MAX_FRAMES")
+    fi
+
+    "${CMD[@]}"
+done < <(list_enabled_animations)
 
 echo
-echo "Animation finished."
-echo "Saved to: $OUTPUT"
+echo "All enabled animations finished."

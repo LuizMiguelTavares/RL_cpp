@@ -1,9 +1,27 @@
 {
-  "run_name": "run_001",
-  "output_name": "value_policy_animation",
+  "run_name": "visit_counter_test",
   "format": "mp4",
-  "fps": 10,
-  "dpi": 160,
+  "fps": 50,
+  "dpi": 100,
   "max_frames": 0,
-  "export_snapshots": true
+  "export_snapshots": true,
+  "encoder": "cpu",
+
+  "animations": [
+    {
+      "type": "value_policy",
+      "enabled": true,
+      "output_name": "value_policy_animation"
+    },
+    {
+      "type": "state_visits",
+      "enabled": true,
+      "output_name": "state_visits_animation"
+    },
+    {
+      "type": "state_updates",
+      "enabled": true,
+      "output_name": "state_updates_animation"
+    }
+  ]
 }
