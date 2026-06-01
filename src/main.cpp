@@ -71,12 +71,12 @@ bool is_due_every(int completed_this_run, int every) {
 }
 
 bool is_due_snapshot_schedule(
-    int completed_this_run,
+    int completed_overall,
     const std::vector<rl::SnapshotScheduleEntry>& schedule
 ) {
     for (const auto& entry : schedule) {
-        if (completed_this_run <= entry.until) {
-            return is_due_every(completed_this_run, entry.every);
+        if (completed_overall <= entry.until) {
+            return is_due_every(completed_overall, entry.every);
         }
     }
 
@@ -84,15 +84,15 @@ bool is_due_snapshot_schedule(
 }
 
 bool should_save_snapshot(
-    int completed_this_run,
+    int completed_overall,
     int snapshot_every,
     const std::vector<rl::SnapshotScheduleEntry>& schedule
 ) {
     if (!schedule.empty()) {
-        return is_due_snapshot_schedule(completed_this_run, schedule);
+        return is_due_snapshot_schedule(completed_overall, schedule);
     }
 
-    return is_due_every(completed_this_run, snapshot_every);
+    return is_due_every(completed_overall, snapshot_every);
 }
 
 }  // namespace
@@ -268,7 +268,7 @@ int main(int argc, char** argv) {
                     // These create checkpoints/ep_N.
                     if (
                         should_save_snapshot(
-                            completed_this_run,
+                            completed_overall,
                             cfg.training.snapshot_every,
                             cfg.training.snapshot_schedule
                         )
