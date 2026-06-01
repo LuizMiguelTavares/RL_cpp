@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include <nlohmann/json.hpp>
 
@@ -160,6 +161,7 @@ void export_q_table_csv(
         << "row,col,"
         << "is_obstacle,is_start,is_goal,"
         << "value,confidence,"
+        << "visit_count,update_count,"
         << "greedy_action,greedy_delta_row,greedy_delta_col";
 
     for (Action a = 0; a < env.num_actions(); ++a) {
@@ -182,12 +184,16 @@ void export_q_table_csv(
 
             double value = std::numeric_limits<double>::quiet_NaN();
             double confidence = std::numeric_limits<double>::quiet_NaN();
+            std::uint64_t visit_count = 0;
+            std::uint64_t update_count = 0;
             Action greedy_action = -1;
             State greedy_delta{0, 0};
 
             if (!is_obstacle) {
                 value = state_value(env, agent, s);
                 confidence = state_confidence(env, agent, s);
+                visit_count = agent.state_visit_count(s);
+                update_count = agent.state_update_count(s);
                 greedy_action = agent.greedy_action(s);
                 greedy_delta = env.action_delta(greedy_action);
             }
@@ -200,6 +206,8 @@ void export_q_table_csv(
                 << static_cast<int>(is_goal) << ','
                 << value << ','
                 << confidence << ','
+                << visit_count << ','
+                << update_count << ','
                 << greedy_action << ','
                 << greedy_delta.row << ','
                 << greedy_delta.col;

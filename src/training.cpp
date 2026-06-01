@@ -42,12 +42,15 @@ Episode generate_episode(
 
     State state = env.reset();
 
+    agent.record_state_visit(state);
+
     for (int step = 0; step < max_steps; ++step) {
         const Action action = agent.behavior_action(state);
         const StepResult result = env.step(action);
 
         episode.add_transition(state, action, result.reward);
         state = result.next_state;
+        agent.record_state_visit(result.next_state);
 
         if (result.terminated || result.truncated) {
             episode.terminated = result.terminated;

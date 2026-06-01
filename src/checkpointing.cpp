@@ -222,6 +222,8 @@ void save_checkpoint(
     save_vector_binary(checkpoint_dir / "Q.bin", agent.q_data());
     save_vector_binary(checkpoint_dir / "C.bin", agent.c_data());
     save_vector_binary(checkpoint_dir / "tie_noise.bin", agent.tie_noise_data());
+    save_vector_binary(checkpoint_dir / "state_visits.bin", agent.state_visit_data());
+    save_vector_binary(checkpoint_dir / "state_update_counts.bin", agent.state_update_count_data());
 }
 
 LoadedCheckpoint load_checkpoint(
@@ -233,6 +235,22 @@ LoadedCheckpoint load_checkpoint(
     std::vector<double> Q = load_vector_binary<double>(checkpoint_dir / "Q.bin");
     std::vector<double> C = load_vector_binary<double>(checkpoint_dir / "C.bin");
     std::vector<double> tie_noise = load_vector_binary<double>(checkpoint_dir / "tie_noise.bin");
+    std::vector<std::uint64_t> state_visits;
+    std::vector<std::uint64_t> state_update_counts;
+
+    const std::filesystem::path state_visits_path =
+        checkpoint_dir / "state_visits.bin";
+
+    const std::filesystem::path state_update_counts_path =
+        checkpoint_dir / "state_update_counts.bin";
+
+    if (std::filesystem::exists(state_visits_path)) {
+        state_visits = load_vector_binary<std::uint64_t>(state_visits_path);
+    }
+
+    if (std::filesystem::exists(state_update_counts_path)) {
+        state_update_counts = load_vector_binary<std::uint64_t>(state_update_counts_path);
+    }
 
     GridWorld env(
         meta.width,
@@ -267,6 +285,15 @@ LoadedCheckpoint load_checkpoint(
     agent.set_q_data(Q);
     agent.set_c_data(C);
     agent.set_tie_noise_data(tie_noise);
+
+    if (!state_visits.empty()) {
+        agent.set_state_visit_data(state_visits);
+    }
+
+    if (!state_update_counts.empty()) {
+        agent.set_state_update_count_data(state_update_counts);
+    }
+
     agent.set_rng_state_string(meta.agent_rng_state);
 
     return LoadedCheckpoint{

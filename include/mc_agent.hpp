@@ -3,6 +3,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include "episode.hpp"
 #include "gridworld.hpp"
@@ -61,6 +62,17 @@ public:
     [[nodiscard]] double c_value(const State& state, Action action) const;
     [[nodiscard]] double tie_noise_value(const State& state, Action action) const;
 
+    [[nodiscard]] std::uint64_t state_visit_count(const State& state) const;
+    [[nodiscard]] std::uint64_t state_update_count(const State& state) const;
+
+    void record_state_visit(const State& state);
+
+    [[nodiscard]] const std::vector<std::uint64_t>& state_visit_data() const noexcept;
+    [[nodiscard]] const std::vector<std::uint64_t>& state_update_count_data() const noexcept;
+
+    void set_state_visit_data(const std::vector<std::uint64_t>& visits);
+    void set_state_update_count_data(const std::vector<std::uint64_t>& update_counts);
+
     void set_q_value(const State& state, Action action, double value);
     void set_c_value(const State& state, Action action, double value);
 
@@ -81,6 +93,7 @@ private:
     // --------------------------------------------------
     [[nodiscard]] Index state_action_index(const State& state, Action action) const noexcept;
     [[nodiscard]] Action greedy_action_from_index(Index state_idx) const noexcept;
+    [[nodiscard]] Index state_index(const State& state) const noexcept;
 
 private:
     // --------------------------------------------------
@@ -110,6 +123,8 @@ private:
     std::vector<double> Q_;
     std::vector<double> C_;
     std::vector<double> tie_noise_;
+    std::vector<std::uint64_t> state_visits_;
+    std::vector<std::uint64_t> state_update_counts_;
 };
 
 }  // namespace rl

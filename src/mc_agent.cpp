@@ -6,6 +6,7 @@
 #include <limits>
 #include <stdexcept>
 #include <sstream>
+#include <cstdint>
 
 namespace rl {
 
@@ -49,6 +50,13 @@ MonteCarloOffPolicyAgent::MonteCarloOffPolicyAgent(
     C_.assign(total_sa, 0.0);
     tie_noise_.assign(total_sa, 0.0);
 
+    const Index total_states =
+        static_cast<Index>(width_) *
+        static_cast<Index>(height_);
+
+    state_visits_.assign(total_states, 0);
+    state_update_counts_.assign(total_states, 0);
+
     // Pequeno ruído fixo para desempate estável e não enviesado para ação 0
     std::normal_distribution<double> noise_dist(0.0, 1e-12);
     for (auto& v : tie_noise_) {
@@ -90,7 +98,14 @@ unsigned int MonteCarloOffPolicyAgent::seed() const noexcept {
 
 // --------------------------------------------------
 // Internal helpers
-// --------------------------------------------------
+// --------------------------------------------------   
+
+Index MonteCarloOffPolicyAgent::state_index(const State& state) const noexcept {
+    return (
+        static_cast<Index>(state.row) * static_cast<Index>(width_) +
+        static_cast<Index>(state.col)
+    );
+}
 
 Index MonteCarloOffPolicyAgent::state_action_index(const State& state, Action action) const noexcept {
     return (
@@ -224,6 +239,7 @@ UpdateStats MonteCarloOffPolicyAgent::update_from_episode(const Episode& episode
 
         C_[idx] += W;
         Q_[idx] += (W / C_[idx]) * (G - Q_[idx]);
+        ++state_update_counts_[state_index(state_t)];
         ++stats.updates_applied;
 
         const Action greedy = greedy_action(state_t);
@@ -299,6 +315,30 @@ double MonteCarloOffPolicyAgent::tie_noise_value(const State& state, Action acti
     return tie_noise_[state_action_index(state, action)];
 }
 
+std::uint64_t MonteCarloOffPolicyAgent::state_visit_count(const State& state) const {
+    if (state.row < 0 || state.row >= height_ || state.col < 0 || state.col >= width_) {
+        throw std::out_of_range("MonteCarloOffPolicyAgent::state_visit_count: state out of bounds");
+    }
+
+    return state_visits_[state_index(state)];
+}
+
+std::uint64_t MonteCarloOffPolicyAgent::state_update_count(const State& state) const {
+    if (state.row < 0 || state.row >= height_ || state.col < 0 || state.col >= width_) {
+        throw std::out_of_range("MonteCarloOffPolicyAgent::state_update_count: state out of bounds");
+    }
+
+    return state_update_counts_[state_index(state)];
+}
+
+void MonteCarloOffPolicyAgent::record_state_visit(const State& state) {
+    if (state.row < 0 || state.row >= height_ || state.col < 0 || state.col >= width_) {
+        throw std::out_of_range("MonteCarloOffPolicyAgent::record_state_visit: state out of bounds");
+    }
+
+    ++state_visits_[state_index(state)];
+}
+
 void MonteCarloOffPolicyAgent::set_q_value(const State& state, Action action, double value) {
     if (action < 0 || action >= num_actions_) {
         throw std::out_of_range("MonteCarloOffPolicyAgent::set_q_value: action out of range");
@@ -325,6 +365,14 @@ const std::vector<double>& MonteCarloOffPolicyAgent::tie_noise_data() const noex
     return tie_noise_;
 }
 
+const std::vector<std::uint64_t>& MonteCarloOffPolicyAgent::state_visit_data() const noexcept {
+    return state_visits_;
+}
+
+const std::vector<std::uint64_t>& MonteCarloOffPolicyAgent::state_update_count_data() const noexcept {
+    return state_update_counts_;
+}
+
 void MonteCarloOffPolicyAgent::set_q_data(const std::vector<double>& q_values) {
     if (q_values.size() != Q_.size()) {
         throw std::runtime_error("MonteCarloOffPolicyAgent::set_q_data: wrong vector size");
@@ -344,6 +392,24 @@ void MonteCarloOffPolicyAgent::set_tie_noise_data(const std::vector<double>& noi
         throw std::runtime_error("MonteCarloOffPolicyAgent::set_tie_noise_data: wrong vector size");
     }
     tie_noise_ = noise_values;
+}
+
+void MonteCarloOffPolicyAgent::set_state_visit_data(const std::vector<std::uint64_t>& visits) {
+    if (visits.size() != state_visits_.size()) {
+        throw std::runtime_error("MonteCarloOffPolicyAgent::set_state_visit_data: wrong vector size");
+    }
+
+    state_visits_ = visits;
+}
+
+void MonteCarloOffPolicyAgent::set_state_update_count_data(
+    const std::vector<std::uint64_t>& update_counts
+) {
+    if (update_counts.size() != state_update_counts_.size()) {
+        throw std::runtime_error("MonteCarloOffPolicyAgent::set_state_update_count_data: wrong vector size");
+    }
+
+    state_update_counts_ = update_counts;
 }
 
 std::string MonteCarloOffPolicyAgent::rng_state_string() const {
