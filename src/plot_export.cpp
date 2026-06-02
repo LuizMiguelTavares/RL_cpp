@@ -44,7 +44,7 @@ std::string action_name_from_delta(const State& delta) {
     return "unknown";
 }
 
-double state_value(const GridWorld& env, const MonteCarloOffPolicyAgent& agent, const State& state) {
+double state_value(const GridWorld& env, const MonteCarloAgent& agent, const State& state) {
     double best = -std::numeric_limits<double>::infinity();
 
     for (Action a = 0; a < env.num_actions(); ++a) {
@@ -54,7 +54,7 @@ double state_value(const GridWorld& env, const MonteCarloOffPolicyAgent& agent, 
     return best;
 }
 
-double state_confidence(const GridWorld& env, const MonteCarloOffPolicyAgent& agent, const State& state) {
+double state_confidence(const GridWorld& env, const MonteCarloAgent& agent, const State& state) {
     if (env.num_actions() < 2) {
         return std::numeric_limits<double>::quiet_NaN();
     }
@@ -147,7 +147,7 @@ void export_grid_map_json(
 void export_q_table_csv(
     const std::filesystem::path& path,
     const GridWorld& env,
-    const MonteCarloOffPolicyAgent& agent
+    const MonteCarloAgent& agent
 ) {
     std::ofstream out(path);
 
@@ -230,7 +230,7 @@ void export_q_table_csv(
 void export_gridworld_plot_data(
     const std::filesystem::path& export_dir,
     const GridWorld& env,
-    const MonteCarloOffPolicyAgent& agent,
+    const MonteCarloAgent& agent,
     int last_completed_episode
 ) {
     std::filesystem::create_directories(export_dir);

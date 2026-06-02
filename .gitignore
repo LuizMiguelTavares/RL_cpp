@@ -3,6 +3,8 @@ runs/
 bin/
 .vscode/
 .venv/
+.codex/
+.agents/
 *.o
 *.obj
 *.so

@@ -1,9 +1,9 @@
 from pathlib import Path
 import argparse
+import csv
 import json
 
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -111,9 +111,11 @@ def load_grid_map(frame_dir):
     }
 
 
-def load_frame(frame_dir, height, width):
-    q_df = pd.read_csv(frame_dir / "q_table.csv")
+def parse_bool(value):
+    return str(value).strip().lower() in {"1", "true", "yes"}
 
+
+def load_frame(frame_dir, height, width):
     value = np.full((height, width), np.nan)
     visit_count = np.full((height, width), np.nan)
     update_count = np.full((height, width), np.nan)
@@ -124,19 +126,22 @@ def load_frame(frame_dir, height, width):
     is_obstacle = np.zeros((height, width), dtype=bool)
     is_goal = np.zeros((height, width), dtype=bool)
 
-    for _, row in q_df.iterrows():
-        r = int(row["row"])
-        c = int(row["col"])
+    with open(frame_dir / "q_table.csv", "r", newline="") as f:
+        reader = csv.DictReader(f)
 
-        is_obstacle[r, c] = bool(row["is_obstacle"])
-        is_goal[r, c] = bool(row["is_goal"])
+        for row in reader:
+            r = int(row["row"])
+            c = int(row["col"])
 
-        value[r, c] = row["value"]
-        greedy_dr[r, c] = row["greedy_delta_row"]
-        greedy_dc[r, c] = row["greedy_delta_col"]
+            is_obstacle[r, c] = parse_bool(row["is_obstacle"])
+            is_goal[r, c] = parse_bool(row["is_goal"])
 
-        visit_count[r, c] = row.get("visit_count", 0)
-        update_count[r, c] = row.get("update_count", 0)
+            value[r, c] = float(row["value"])
+            greedy_dr[r, c] = float(row["greedy_delta_row"])
+            greedy_dc[r, c] = float(row["greedy_delta_col"])
+
+            visit_count[r, c] = float(row.get("visit_count", 0) or 0)
+            update_count[r, c] = float(row.get("update_count", 0) or 0)
 
     value[is_obstacle] = np.nan
     visit_count[is_obstacle] = np.nan
@@ -285,6 +290,11 @@ def make_writer(output_path, fps, encoder):
     raise RuntimeError("Unsupported output format. Use .mp4 or .gif")
 
 
+def load_manifest(manifest_path):
+    with open(manifest_path, "r", newline="") as f:
+        return list(csv.DictReader(f))
+
+
 def main():
     args = parse_args()
 
@@ -294,20 +304,20 @@ def main():
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest not found: {manifest_path}")
 
-    manifest = pd.read_csv(manifest_path)
+    manifest = load_manifest(manifest_path)
 
     if args.max_frames > 0:
-        manifest = manifest.iloc[: args.max_frames].copy()
+        manifest = manifest[: args.max_frames]
 
-    if manifest.empty:
+    if not manifest:
         raise RuntimeError("Manifest is empty.")
 
     frame_dirs = [
-        data_dir / frame_dir
-        for frame_dir in manifest["frame_dir"].tolist()
+        data_dir / row["frame_dir"]
+        for row in manifest
     ]
 
-    episodes = manifest["episode"].astype(int).tolist()
+    episodes = [int(row["episode"]) for row in manifest]
 
     grid_info = load_grid_map(frame_dirs[0])
     height = grid_info["height"]

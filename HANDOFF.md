@@ -74,7 +74,7 @@ Stores one generated trajectory:
 - termination flag
 - truncation flag
 
-### `MonteCarloOffPolicyAgent`
+### `MonteCarloAgent`
 
 Current agent implementation.
 

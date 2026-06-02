@@ -10,7 +10,7 @@ namespace rl {
 void export_gridworld_plot_data(
     const std::filesystem::path& export_dir,
     const GridWorld& env,
-    const MonteCarloOffPolicyAgent& agent,
+    const MonteCarloAgent& agent,
     int last_completed_episode
 );
 

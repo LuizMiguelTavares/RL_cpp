@@ -83,7 +83,7 @@ A new run is created when:
 In this mode, the program:
 
 1. creates a new `GridWorld`;
-2. creates a new `MonteCarloOffPolicyAgent`;
+2. creates a new `MonteCarloAgent`;
 3. trains for `episodes_this_run`;
 4. writes CSV logs;
 5. saves checkpoints;

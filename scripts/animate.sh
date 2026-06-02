@@ -95,6 +95,7 @@ RUN_DIR="runs/$RUN_NAME"
 DATA_DIR="$RUN_DIR/animation_data"
 OUTPUT_DIR="$RUN_DIR/figures"
 EXPORTER="./build/bin/rl_export_snapshots"
+MPLCONFIGDIR="${MPLCONFIGDIR:-/tmp/rl_cpp_matplotlib}"
 
 echo "Animation config: $ANIMATION_CONFIG"
 echo "Run name:         $RUN_NAME"
@@ -108,6 +109,8 @@ echo "Max frames:       $MAX_FRAMES"
 echo "Encoder:          $ENCODER"
 echo "Export snapshots: $EXPORT_SNAPSHOTS"
 echo
+
+mkdir -p "$MPLCONFIGDIR"
 
 if [[ "$EXPORT_SNAPSHOTS" == "true" ]]; then
     if [[ ! -x "$EXPORTER" ]]; then
@@ -133,6 +136,9 @@ while IFS="|" read -r PLOT_TYPE OUTPUT_NAME; do
     echo "----------------------------------------"
 
     CMD=(
+        env
+        PYTHONNOUSERSITE=1
+        MPLCONFIGDIR="$MPLCONFIGDIR"
         python3 scripts/animate_gridworld.py
         --data "$DATA_DIR"
         --output "$OUTPUT"
