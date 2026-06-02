@@ -1,7 +1,9 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <cmath>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -48,7 +50,7 @@ bool stop_requested() {
 void save_latest_checkpoint(
     const std::filesystem::path& latest_ckpt_dir,
     const rl::GridWorld& env,
-    const rl::MonteCarloOffPolicyAgent& agent,
+    const rl::MonteCarloAgent& agent,
     int last_completed_episode
 ) {
     rl::save_checkpoint(latest_ckpt_dir, env, agent, last_completed_episode);
@@ -57,7 +59,7 @@ void save_latest_checkpoint(
 void save_numbered_checkpoint(
     const std::filesystem::path& checkpoints_dir,
     const rl::GridWorld& env,
-    const rl::MonteCarloOffPolicyAgent& agent,
+    const rl::MonteCarloAgent& agent,
     int last_completed_episode
 ) {
     const std::filesystem::path numbered_ckpt =
@@ -93,6 +95,86 @@ bool should_save_snapshot(
     }
 
     return is_due_every(completed_overall, snapshot_every);
+}
+
+void append_mismatch(
+    std::ostringstream& message,
+    const std::string& name,
+    const std::string& checkpoint_value,
+    const std::string& config_value
+) {
+    if (checkpoint_value == config_value) {
+        return;
+    }
+
+    message
+        << "  " << name
+        << ": checkpoint=" << checkpoint_value
+        << ", config=" << config_value << '\n';
+}
+
+void append_mismatch(
+    std::ostringstream& message,
+    const std::string& name,
+    double checkpoint_value,
+    double config_value
+) {
+    constexpr double tolerance = 1e-12;
+
+    if (std::abs(checkpoint_value - config_value) <= tolerance) {
+        return;
+    }
+
+    message
+        << "  " << name
+        << ": checkpoint=" << checkpoint_value
+        << ", config=" << config_value << '\n';
+}
+
+void validate_resume_agent_config(
+    const rl::MonteCarloAgent& checkpoint_agent,
+    const rl::AgentConfig& config_agent
+) {
+    std::ostringstream mismatches;
+
+    append_mismatch(
+        mismatches,
+        "control_mode",
+        checkpoint_agent.control_mode(),
+        config_agent.control_mode
+    );
+
+    append_mismatch(
+        mismatches,
+        "importance_sampling",
+        checkpoint_agent.importance_sampling(),
+        config_agent.importance_sampling
+    );
+
+    append_mismatch(
+        mismatches,
+        "visit_mode",
+        checkpoint_agent.visit_mode(),
+        config_agent.visit_mode
+    );
+
+    append_mismatch(
+        mismatches,
+        "gamma",
+        checkpoint_agent.gamma(),
+        config_agent.gamma
+    );
+
+    const std::string mismatch_text = mismatches.str();
+    if (mismatch_text.empty()) {
+        return;
+    }
+
+    throw std::runtime_error(
+        "Resume checkpoint agent settings do not match config.json:\n" +
+        mismatch_text +
+        "Set resume=false or use a new run_name to start fresh."
+    );
 }
 
 }  // namespace
@@ -144,14 +226,16 @@ int main(int argc, char** argv) {
         std::cout << "Resume mode: " << (cfg.resume ? "true" : "false") << "\n\n";
 
         std::unique_ptr<GridWorld> env_ptr;
-        std::unique_ptr<MonteCarloOffPolicyAgent> agent_ptr;
+        std::unique_ptr<MonteCarloAgent> agent_ptr;
         int last_completed_episode = 0;
 
         if (cfg.resume && checkpoint_exists(latest_ckpt_dir)) {
             LoadedCheckpoint ckpt = load_checkpoint(latest_ckpt_dir);
+            validate_resume_agent_config(ckpt.agent, cfg.agent);
 
             env_ptr = std::make_unique<GridWorld>(std::move(ckpt.env));
-            agent_ptr = std::make_unique<MonteCarloOffPolicyAgent>(std::move(ckpt.agent));
+            agent_ptr = std::make_unique<MonteCarloAgent>(std::move(ckpt.agent));
+            agent_ptr->set_epsilon_behavior(cfg.agent.epsilon_behavior);
             last_completed_episode = ckpt.last_completed_episode;
 
             std::cout << "Loaded checkpoint from: " << latest_ckpt_dir << '\n';
@@ -187,11 +271,13 @@ int main(int argc, char** argv) {
                 cfg.environment.obstacle_generation_tries
             );
 
-            agent_ptr = std::make_unique<MonteCarloOffPolicyAgent>(
+            agent_ptr = std::make_unique<MonteCarloAgent>(
                 *env_ptr,
                 cfg.agent.gamma,
                 cfg.agent.epsilon_behavior,
                 cfg.agent.visit_mode,
+                cfg.agent.control_mode,
+                cfg.agent.importance_sampling,
                 cfg.agent.seed
             );
 
@@ -215,7 +301,14 @@ int main(int argc, char** argv) {
         }
 
         GridWorld& env = *env_ptr;
-        MonteCarloOffPolicyAgent& agent = *agent_ptr;
+        MonteCarloAgent& agent = *agent_ptr;
+
+        std::cout << "Active agent:\n";
+        std::cout << "  control_mode: " << agent.control_mode() << '\n';
+        std::cout << "  visit_mode: " << agent.visit_mode() << '\n';
+        std::cout << "  importance_sampling: " << agent.importance_sampling() << '\n';
+        std::cout << "  gamma: " << agent.gamma() << '\n';
+        std::cout << "  epsilon_behavior: " << agent.epsilon_behavior() << "\n\n";
 
         const int episodes_this_run = cfg.training.episodes_this_run;
         if (episodes_this_run < 0) {
@@ -286,7 +379,7 @@ int main(int argc, char** argv) {
                 return stop_requested();
             };
 
-            history = train_mc_offpolicy(env, agent, train_cfg, &logger);
+            history = train_monte_carlo(env, agent, train_cfg, &logger);
 
             last_completed_episode += history.completed_episodes;
 

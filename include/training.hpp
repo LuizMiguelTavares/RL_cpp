@@ -40,13 +40,13 @@ struct TrainingHistory {
 
 Episode generate_episode(
     GridWorld& env,
-    MonteCarloOffPolicyAgent& agent,
+    MonteCarloAgent& agent,
     int max_steps
 );
 
-TrainingHistory train_mc_offpolicy(
+TrainingHistory train_monte_carlo(
     GridWorld& env,
-    MonteCarloOffPolicyAgent& agent,
+    MonteCarloAgent& agent,
     const TrainingConfig& config,
     CSVLogger* logger = nullptr
 );

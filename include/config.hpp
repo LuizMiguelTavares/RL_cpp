@@ -37,6 +37,14 @@ struct AgentConfig {
     double gamma{0.99};
     double epsilon_behavior{0.20};
     std::string visit_mode{"first_visit"};
+
+    // "on_policy" | "off_policy"
+    std::string control_mode{"off_policy"};
+
+    // "weighted" | "ordinary"
+    // Used only when control_mode == "off_policy".
+    std::string importance_sampling{"weighted"};
+
     unsigned int seed{42};
 };
 

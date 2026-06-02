@@ -30,7 +30,7 @@ double average_last_n(const std::vector<T>& values, int n) {
 
 Episode generate_episode(
     GridWorld& env,
-    MonteCarloOffPolicyAgent& agent,
+    MonteCarloAgent& agent,
     int max_steps
 ) {
     if (max_steps <= 0) {
@@ -63,23 +63,23 @@ Episode generate_episode(
     return episode;
 }
 
-TrainingHistory train_mc_offpolicy(
+TrainingHistory train_monte_carlo(
     GridWorld& env,
-    MonteCarloOffPolicyAgent& agent,
+    MonteCarloAgent& agent,
     const TrainingConfig& config,
     CSVLogger* logger
 ) {
     if (config.episodes <= 0) {
-        throw std::runtime_error("train_mc_offpolicy: episodes must be positive");
+        throw std::runtime_error("train_monte_carlo: episodes must be positive");
     }
     if (config.max_steps <= 0) {
-        throw std::runtime_error("train_mc_offpolicy: max_steps must be positive");
+        throw std::runtime_error("train_monte_carlo: max_steps must be positive");
     }
     if (config.print_every <= 0) {
-        throw std::runtime_error("train_mc_offpolicy: print_every must be positive");
+        throw std::runtime_error("train_monte_carlo: print_every must be positive");
     }
     if (config.flush_every <= 0) {
-        throw std::runtime_error("train_mc_offpolicy: flush_every must be positive");
+        throw std::runtime_error("train_monte_carlo: flush_every must be positive");
     }
 
     TrainingHistory history;

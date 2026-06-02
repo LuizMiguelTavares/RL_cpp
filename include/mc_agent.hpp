@@ -16,13 +16,25 @@ struct UpdateStats {
     bool break_happened{false};
 };
 
-class MonteCarloOffPolicyAgent {
+enum class MCControlMode {
+    OnPolicy,
+    OffPolicy
+};
+
+enum class ImportanceSamplingMode {
+    Weighted,
+    Ordinary
+};
+
+class MonteCarloAgent {
 public:
-    MonteCarloOffPolicyAgent(
+    MonteCarloAgent(
         const GridWorld& env,
         double gamma = 0.99,
         double epsilon_behavior = 0.2,
-        const std::string& visit_mode = "first_visit",   // "first_visit" | "every_visit"
+        const std::string& visit_mode = "first_visit",
+        const std::string& control_mode = "off_policy",
+        const std::string& importance_sampling = "weighted",
         unsigned int seed = 0
     );
 
@@ -37,6 +49,8 @@ public:
     [[nodiscard]] int height() const noexcept;
     [[nodiscard]] int num_actions() const noexcept;
     [[nodiscard]] unsigned int seed() const noexcept;
+    [[nodiscard]] const std::string& control_mode() const noexcept;
+    [[nodiscard]] const std::string& importance_sampling() const noexcept;
 
     // --------------------------------------------------
     // Policy methods
@@ -73,6 +87,8 @@ public:
     void set_state_visit_data(const std::vector<std::uint64_t>& visits);
     void set_state_update_count_data(const std::vector<std::uint64_t>& update_counts);
 
+    void set_epsilon_behavior(double epsilon_behavior);
+
     void set_q_value(const State& state, Action action, double value);
     void set_c_value(const State& state, Action action, double value);
 
@@ -95,6 +111,16 @@ private:
     [[nodiscard]] Action greedy_action_from_index(Index state_idx) const noexcept;
     [[nodiscard]] Index state_index(const State& state) const noexcept;
 
+    [[nodiscard]] UpdateStats update_on_policy(const Episode& episode);
+    [[nodiscard]] UpdateStats update_off_policy(const Episode& episode);
+
+    void apply_mc_update(
+        Index idx,
+        double denominator_increment,
+        double numerator_weight,
+        double target
+    );
+
 private:
     // --------------------------------------------------
     // Static environment dimensions
@@ -109,6 +135,13 @@ private:
     double gamma_{0.99};
     double epsilon_behavior_{0.2};
     std::string visit_mode_{"first_visit"};
+
+    std::string control_mode_name_{"off_policy"};
+    std::string importance_sampling_name_{"weighted"};
+
+    MCControlMode control_mode_{MCControlMode::OffPolicy};
+    ImportanceSamplingMode importance_sampling_mode_{ImportanceSamplingMode::Weighted};
+    
     unsigned int seed_{0};
 
     // --------------------------------------------------

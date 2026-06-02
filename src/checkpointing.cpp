@@ -62,28 +62,25 @@ std::vector<T> load_vector_binary(const std::filesystem::path& file_path) {
 struct Metadata {
     int checkpoint_version{1};
     int last_completed_episode{0};
-
     int width{0};
     int height{0};
-
     int start_row{0};
     int start_col{0};
     int goal_row{0};
     int goal_col{0};
-
     int allow_diagonal{0};
     int max_steps{0};
-
     double diagonal_cost{1.0};
     double reward_goal{100.0};
     double reward_obstacle{-10.0};
     double reward_step{-0.001};
-
     std::string shaping{"euclidean"};
 
     double gamma{0.99};
     double epsilon_behavior{0.2};
     std::string visit_mode{"first_visit"};
+    std::string control_mode{"off_policy"};
+    std::string importance_sampling{"weighted"};
 
     std::string agent_rng_state;
 };
@@ -118,7 +115,8 @@ void save_metadata(const std::filesystem::path& file_path, const Metadata& meta)
     out << "gamma " << meta.gamma << '\n';
     out << "epsilon_behavior " << meta.epsilon_behavior << '\n';
     out << "visit_mode " << meta.visit_mode << '\n';
-
+    out << "control_mode " << meta.control_mode << "\n";
+    out << "importance_sampling " << meta.importance_sampling << "\n";
     out << "agent_rng_state " << std::quoted(meta.agent_rng_state) << '\n';
 
     if (!out) {
@@ -172,6 +170,10 @@ Metadata load_metadata(const std::filesystem::path& file_path) {
             in >> meta.epsilon_behavior;
         } else if (key == "visit_mode") {
             in >> meta.visit_mode;
+        } else if (key == "control_mode") {
+            in >> meta.control_mode;
+        } else if (key == "importance_sampling") {
+            in >> meta.importance_sampling;
         } else if (key == "agent_rng_state") {
             in >> std::quoted(meta.agent_rng_state);
         } else {
@@ -187,7 +189,7 @@ Metadata load_metadata(const std::filesystem::path& file_path) {
 void save_checkpoint(
     const std::filesystem::path& checkpoint_dir,
     const GridWorld& env,
-    const MonteCarloOffPolicyAgent& agent,
+    const MonteCarloAgent& agent,
     int last_completed_episode
 ) {
     std::filesystem::create_directories(checkpoint_dir);
@@ -215,6 +217,8 @@ void save_checkpoint(
     meta.gamma = agent.gamma();
     meta.epsilon_behavior = agent.epsilon_behavior();
     meta.visit_mode = agent.visit_mode();
+    meta.control_mode = agent.control_mode();
+    meta.importance_sampling = agent.importance_sampling();
     meta.agent_rng_state = agent.rng_state_string();
 
     save_metadata(checkpoint_dir / "meta.txt", meta);
@@ -274,11 +278,13 @@ LoadedCheckpoint load_checkpoint(
 
     env.set_grid(grid);
 
-    MonteCarloOffPolicyAgent agent(
+    MonteCarloAgent agent(
         env,
         meta.gamma,
         meta.epsilon_behavior,
         meta.visit_mode,
+        meta.control_mode,
+        meta.importance_sampling,
         0
     );
 

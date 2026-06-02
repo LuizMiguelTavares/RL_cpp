@@ -9,14 +9,14 @@ namespace rl {
 
 struct LoadedCheckpoint {
     GridWorld env;
-    MonteCarloOffPolicyAgent agent;
+    MonteCarloAgent agent;
     int last_completed_episode{0};
 };
 
 void save_checkpoint(
     const std::filesystem::path& checkpoint_dir,
     const GridWorld& env,
-    const MonteCarloOffPolicyAgent& agent,
+    const MonteCarloAgent& agent,
     int last_completed_episode
 );
 

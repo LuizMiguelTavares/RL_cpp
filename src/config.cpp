@@ -57,6 +57,8 @@ RunConfig load_config(const std::filesystem::path& config_path) {
         cfg.agent.gamma = a.value("gamma", cfg.agent.gamma);
         cfg.agent.epsilon_behavior = a.value("epsilon_behavior", cfg.agent.epsilon_behavior);
         cfg.agent.visit_mode = a.value("visit_mode", cfg.agent.visit_mode);
+        cfg.agent.control_mode = a.value("control_mode", cfg.agent.control_mode);
+        cfg.agent.importance_sampling = a.value("importance_sampling", cfg.agent.importance_sampling);
         cfg.agent.seed = a.value("seed", cfg.agent.seed);
     }
 
@@ -67,7 +69,6 @@ RunConfig load_config(const std::filesystem::path& config_path) {
         cfg.training.max_steps = t.value("max_steps", cfg.training.max_steps);
         cfg.training.print_every = t.value("print_every", cfg.training.print_every);
         cfg.training.flush_every = t.value("flush_every", cfg.training.flush_every);
-        cfg.training.checkpoint_every = t.value("checkpoint_every", cfg.training.checkpoint_every);
         cfg.training.checkpoint_every = t.value("checkpoint_every", cfg.training.checkpoint_every);
         cfg.training.snapshot_every = t.value("snapshot_every", cfg.training.snapshot_every);
         cfg.training.snapshot_schedule.clear();
